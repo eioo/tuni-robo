@@ -2,7 +2,7 @@ import textwrap
 
 
 class Robot:
-    def __init__(self):
+    def __init__(self, debug_mode=False):
         self.memory = []
         self.input = []
         self.output = []
@@ -11,6 +11,7 @@ class Robot:
         self.exit_subroutine = False
         self.program = None
         self.exit_flag = False
+        self.debug_mode = debug_mode
 
         self.commands = {
             'INPUT': self.cmd_input,
@@ -35,13 +36,14 @@ class Robot:
                 cmd_fn = self.commands[cmd['name']]
 
                 if 'arg' in cmd:
-                    print(cmd['name'], cmd['arg'])
+                    self.debug(cmd['name'], cmd['arg'])
                     cmd_fn(cmd['arg'])
                 else:
-                    print(cmd['name'])
+                    self.debug(cmd['name'])
                     cmd_fn()
 
                 if self.exit_subroutine:
+                    self.debug(f'\n[{self.subroutine}]')
                     self.exit_subroutine = False
                     break
 
@@ -90,6 +92,7 @@ class Robot:
 
     def cmd_input(self):
         if not len(self.input):
+            self.hand = None
             self.exit_flag = True
             return
 
@@ -97,7 +100,7 @@ class Robot:
 
     def cmd_output(self):
         if self.hand is None:
-            return self.error('No items in hand')
+            return
 
         self.output.append(self.hand)
         self.hand = None
@@ -107,13 +110,13 @@ class Robot:
             return
 
     def cmd_add(self, mem_index):
-        if not self.hand:
+        if self.hand is None:
             return
 
         self.hand += self.memory[mem_index]
 
     def cmd_sub(self, mem_index):
-        if not self.hand:
+        if self.hand is None:
             return
 
         self.hand -= self.memory[mem_index]
@@ -131,23 +134,23 @@ class Robot:
         if not self.valid_subroutine(subroutine):
             return
 
+        self.subroutine = subroutine
         self.exit_subroutine = True
 
     def cmd_jumpifzero(self, subroutine):
         if not self.valid_subroutine(subroutine):
             return
 
-        if self.hand == 0:
+        if self.hand is not None and self.hand == 0:
+            self.subroutine = subroutine
             self.exit_subroutine = True
 
     def cmd_jumpifneg(self, subroutine):
         if not self.valid_subroutine(subroutine):
             return
 
-        if not self.hand:
-            return
-
-        if self.hand < 0:
+        if self.hand is not None and self.hand < 0:
+            self.subroutine = subroutine
             self.exit_subroutine = True
 
     def valid_subroutine(self, subroutine):
@@ -157,17 +160,21 @@ class Robot:
 
         return True
 
+    def debug(self, *args):
+        if self.debug_mode:
+            print(*args)
+
     @staticmethod
     def error(message):
         print(f'(ERR) {message}')
 
     def __str__(self):
-        return '-' * 25 + f'\nInput\t{self.input}\nOutput\t{self.output}'
+        return f'Input\t{self.input}\nOutput\t{self.output}\nHand\t{self.hand}\n'
 
 
 if __name__ == '__main__':
-    r = Robot()
-    r.input = [1, 0, 7, 9, 0, 4]
+    r = Robot(debug_mode=True)
+    r.input = [8, 3, 5, 0, 0, 6]
     r.memory = [1]
 
     program = '''
